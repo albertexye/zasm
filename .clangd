@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-xc, -std=c23, -Weverything, -Werror, -Wno-unsafe-buffer-usage, -Wno-declaration-after-statement, -Wno-covered-switch-default, -Wno-pre-c23-compat, -Wno-padded, -Wno-format-nonliteral, -Wno-c++98-compat, -D_DEFAULT_SOURCE]

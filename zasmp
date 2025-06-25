@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+build_dir="out"
+src_dir="src"
+
+warnings="-Weverything -Werror -Wno-unsafe-buffer-usage -Wno-declaration-after-statement -Wno-covered-switch-default -Wno-pre-c23-compat -Wno-padded -Wno-format-nonliteral -Wno-c++98-compat -D_DEFAULT_SOURCE"
+
+_build_builder () {
+  mkdir -p "$build_dir"
+  clang -xc -std=c23 -o "$build_dir/zasmb" zasmb.c -O3 -ffast-math -flto -march=native $warnings "-DBUILD_DIR=\"$build_dir\"" "-DSRC_DIR=\"$src_dir\"" "-DWARNINGS=\"$warnings\""
+}
+
+build () {
+  src_time=$(stat -c '%Y' zasmb.c)
+  if [ -f "$build_dir/zasmb" ]; then
+    exe_time=$(stat -c '%Y' "$build_dir/zasmb")
+  else
+    exe_time=0
+  fi
+  if (( src_time > exe_time )); then
+    _build_builder
+  fi
+  "$build_dir/zasmb" $@
+}
+
+force_build () {
+  _build_builder
+  "$build_dir/zasmb" $@ f
+}
+
+run () {
+  if [ "$#" -eq 0 ]; then
+    echo "missing executable" >&2
+    exit 1
+  fi
+  build d "$1"
+  "$build_dir/debug/${1,,}/zasm${1,,}" ${@:2}
+}
+
+if [ "$#" -eq 0 ]; then
+  echo "missing command" >&2
+  echo "commands: build, force_build, run" >&2
+  exit 1
+fi
+
+if declare -f "$1" > /dev/null
+then
+  "$@"
+else
+  echo "'$1' is not a command" >&2
+  echo "commands: build, force_build, run" >&2
+  exit 1
+fi
+
