@@ -267,11 +267,6 @@ static void ZF_readTty(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
     err->code.errno_ = errno;
     return;
   }
-  // Mark for deletion
-  for (size_t i = 0; i < (size_t)size; ++i) {
-    printf("%02X", ctx->buf[ctx->bufLen + i]);
-  }
-  if (size > 0) printf("\n");
   ctx->bufLen += size;
   return;
 }
@@ -303,7 +298,7 @@ static void ZF_parseMagic(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
 static void ZF_parseOp(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
   const uint8_t op = ZF_getc(ctx);
   if (op == ZF_OP_ACK) {
-    ctx->rcvState = ZF_RCV_STATE_HASH;
+    ctx->rcvState = ZF_RCV_STATE_CRC;
     return;
   }
   err->err = ZF_ERR_PROTOCOL;
@@ -315,7 +310,7 @@ static void ZF_parseHash(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
   const uint16_t hash = ZF_crc16(ctx->buf, ctx->bufPos - 2);
   if (crc != hash) {
     err->err = ZF_ERR_PROTOCOL;
-    err->code.protocol = ZF_PROTOCOL_ERR_HASH;
+    err->code.protocol = ZF_PROTOCOL_ERR_CRC;
   }
   ZF_clearTty(ctx, err);
 }
@@ -333,7 +328,7 @@ bool ZF_poll(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
       case ZF_RCV_STATE_OP:
         ZF_parseOp(ctx, err);
         break;
-      case ZF_RCV_STATE_HASH:
+      case ZF_RCV_STATE_CRC:
         if (avail < 2) return false;
         ZF_parseHash(ctx, err);
         return err->err == ZF_ERR_OK;
@@ -401,11 +396,6 @@ static void ZF_writeTty(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
     ZF_clearTty(ctx, &err_);
     return;
   }
-  // Mark for deletion
-  for (size_t i = 0; i < ctx->bufLen; ++i) {
-    printf("%02X", ctx->buf[i]);
-  }
-  if (ctx->bufLen > 0) printf("\n");
   ZF_clearTty(ctx, err);
 }
 
@@ -452,9 +442,9 @@ const char* ZF_getErrMsg(const ZF_Err_T err) {
 #include "zasmcli.h"
 #include "stream.h"
 
-static const char *const USAGE = "zasmf [device]";
+static const char *const s_ZF_Usage = "zasmf [device]";
 
-static const char *const HELP =
+static const char *const s_ZF_HelpMsg =
   "zasmf - ZASM flash tool\n"
   "Commands:\n"
   "  p - ping the device\n"
@@ -462,7 +452,7 @@ static const char *const HELP =
   "  q - quit\n"
   "  h - help (this message)\n";
 
-static bool inputPage(bool *const page) {
+static bool ZF_inputPage(bool *const page) {
   printf("page: ");
   char cmd;
   if (!ZCLI_getcmd(&cmd)) {
@@ -484,7 +474,7 @@ static bool inputPage(bool *const page) {
     ZCLI_error(ZF_getErrMsg(err));
     exit(1);
   }
-  printf("exit\n");
+  printf("quit\n");
   exit(0);
 }
 
@@ -504,7 +494,7 @@ static bool ZF_readFile(
   return true;
 }
 
-static void exec(ZF_Ctx_T *const ctx, const char cmd) {
+static void ZF_exec(ZF_Ctx_T *const ctx, const char cmd) {
   bool page;
   ZF_Err_T err = {0};
   uint8_t buf[256];
@@ -516,12 +506,13 @@ static void exec(ZF_Ctx_T *const ctx, const char cmd) {
     case 'q':
       ZF_quit(ctx);
     case 'w':
-      if (!inputPage(&page)) return;
+      if (!ZF_inputPage(&page)) return;
       if (!ZF_readFile(buf)) return;
+      printf("write\n");
       ZF_write(ctx, buf, page, &err);
       break;
     case 'h':
-      printf(HELP);
+      printf(s_ZF_HelpMsg);
       return;
     default:
       ZCLI_error("unrecognized command - 'h' for help");
@@ -540,7 +531,7 @@ static void exec(ZF_Ctx_T *const ctx, const char cmd) {
   else ZCLI_error("timeout");
 }
 
-[[noreturn]] static void interactive(ZF_Ctx_T *const ctx) {
+[[noreturn]] static void ZF_interactive(ZF_Ctx_T *const ctx) {
   printf("zasmf interactive\n");
   while (true) {
     char cmd;
@@ -556,7 +547,7 @@ static void exec(ZF_Ctx_T *const ctx, const char cmd) {
 int main(const int argc, char *const argv[]) {
   if (argc != 2) {
     ZCLI_error("bad arguments");
-    printf("usage: %s\n", USAGE);
+    printf("usage: %s\n", s_ZF_Usage);
     return 1;
   }
   ZF_Err_T err;
@@ -565,6 +556,6 @@ int main(const int argc, char *const argv[]) {
     ZCLI_error(ZF_getErrMsg(err));
     return 1;
   }
-  interactive(&ctx);
+  ZF_interactive(&ctx);
 }
 #endif

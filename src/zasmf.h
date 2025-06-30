@@ -6,7 +6,7 @@
  * over a serial interface. It defines error handling, context management, and functions for
  * sending and receiving data, as well as device control operations.
  *
- * All functions and types are designed for use in embedded or host-side tools that interact
+ * All functions and types are designed for use in host-side tools that interact
  * with ZASM devices for flashing, pinging, and protocol management.
  */
 
@@ -39,7 +39,7 @@ typedef enum : uint8_t {
 typedef enum : uint8_t {
   ZF_PROTOCOL_ERR_START_BYTE, /**< Invalid start byte received. */
   ZF_PROTOCOL_ERR_OP,         /**< Invalid operation code received. */
-  ZF_PROTOCOL_ERR_HASH,       /**< Invalid hash (CRC) received. */
+  ZF_PROTOCOL_ERR_CRC,       /**< Invalid CRC received. */
 } ZF_ProtocolErr_E;
 
 /**
@@ -63,7 +63,7 @@ typedef struct {
 typedef enum : uint8_t {
   ZF_RCV_STATE_NONE, /**< No data received. */
   ZF_RCV_STATE_OP,   /**< Operation byte expected. */
-  ZF_RCV_STATE_HASH, /**< Hash (CRC) expected. */
+  ZF_RCV_STATE_CRC, /**< CRC expected. */
 } ZF_Rcv_State_E;
 
 /**
@@ -75,7 +75,7 @@ typedef enum : uint8_t {
 typedef struct {
   ZF_Fd_T fd;             /**< File descriptor for the device. */
   ZF_Rcv_State_E rcvState;/**< Current receive state. */
-  uint16_t bufPos;        /**< Current buffer position. */
+  uint16_t bufPos;        /**< Current buffer parsing position. */
   uint16_t bufLen;        /**< Current buffer length. */
   uint8_t* buf;           /**< Pointer to the data buffer. */
 } ZF_Ctx_T;
@@ -107,14 +107,6 @@ void ZF_close(ZF_Ctx_T* ctx, ZF_Err_T* const err);
 bool ZF_poll(ZF_Ctx_T* ctx, ZF_Err_T* err);
 
 /**
- * @brief Get a pointer to the received data buffer.
- *
- * @param ctx Pointer to the context.
- * @return Pointer to the data buffer (const).
- */
-const void* ZF_getData(ZF_Ctx_T* ctx);
-
-/**
  * @brief Block until an ACK is received or a timeout occurs.
  *
  * @param ctx Pointer to the context.
@@ -131,15 +123,6 @@ bool ZF_block(ZF_Ctx_T* ctx, uint32_t timeout, ZF_Err_T* err);
  * @param err Pointer to error structure to receive error information.
  */
 void ZF_ping(ZF_Ctx_T* ctx, ZF_Err_T* err);
-
-/**
- * @brief Read a page of data from the device.
- *
- * @param ctx Pointer to the context.
- * @param page Page selector (true for high page, false for low page).
- * @param err Pointer to error structure to receive error information.
- */
-void ZF_read(ZF_Ctx_T* ctx, bool page, ZF_Err_T* err);
 
 /**
  * @brief Write a page of data to the device.
