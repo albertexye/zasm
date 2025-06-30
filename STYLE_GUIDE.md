@@ -35,7 +35,7 @@ Follow these naming conventions to ensure consistency and clarity throughout the
 - **Module Abbreviation**: Use 2-3 uppercase letters to represent the module (e.g., `DP` for Data Parser).
 - **Structs/Unions**: `MOD_StructName_T` (UpperCamelCase, suffixed with `_T`).
 - **Enums**: `MOD_EnumName_E` (UpperCamelCase, suffixed with `_E`).
-- **Enum Members**: `MOD_ENUMNAME_MEMBER_NAME` (all uppercase with underscores).
+- **Enum Members**: `MOD_ENUM_MEMBER_NAME` (all uppercase with underscores).
 - **Typedefs for basic types/function pointers**: `MOD_CustomTypeName_T` (UpperCamelCase, suffixed with `_T`).
 
 ### Functions
@@ -59,6 +59,6 @@ Follow these naming conventions to ensure consistency and clarity throughout the
 ## Documentation
 
 - **Doxygen** is the documentation format to be used.
-- Function docstrings (Doxygen comments) can only be written for the function declarations, not the function implementations.
+- Function docstring (Doxygen comments) can only be written for the function declarations, not the function implementations.
 - Functions should have inline comments within their bodies if there is something worth documenting about the implementation.
 - All symbols should be documented, including global variables, macros, and types.

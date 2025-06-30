@@ -9,4 +9,4 @@ Don't document the exported functions as they are already documented in the .h f
 Don't document the static function implementations, only their declarations.
 Add some inline comments in function bodies to clarify the logic where necessary.
 Ensure that the documentation is suitable for developers who will be using or maintaining the code.
-Also add docstrings for the entire file.
+Also add docstring for the entire file.

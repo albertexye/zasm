@@ -16,7 +16,7 @@ This file documents the pin connections between the EEPROMs and various parts of
 
 The flasher is an Arduino Nano board connected to two 74HC595 chips. 74HC595 is an 8-bit shift register used to set the address and data pins for the EEPROM being flashed.
 
-The shift resgiters and EEPROM input pins are connected in a way that the first written bit gets transferred to Pin 0 (IO0 or A0). The least significant bit is written first.
+The shift registers and EEPROM input pins are connected in a way that the first written bit gets transferred to Pin 0 (IO0 or A0). The least significant bit is written first.
 
 Bit Order:
 
