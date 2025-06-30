@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # zasm build script
 # Usage: ./zasmb <command> [args]
 # Commands:
@@ -8,7 +8,7 @@
 #
 # This script manages building and running the zasm assembler and related tools.
 
-set -euo pipefail
+set -eu
 
 build_dir="out"      # Output directory for build artifacts
 src_dir="src"        # Source code directory
@@ -48,7 +48,9 @@ run () {
     exit 1
   fi
   build d "$1"
-  "$build_dir/debug/${1,,}/zasm${1,,}" ${@:2}
+  lowercase=$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')
+  shift
+  "$build_dir/debug/$lowercase/zasm$lowercase" "$@"
 }
 
 # Main command dispatch
@@ -58,12 +60,14 @@ if [ "$#" -eq 0 ]; then
   exit 1
 fi
 
-if declare -f "$1" > /dev/null
-then
-  "$@"
-else
-  echo "'$1' is not a command" >&2
-  echo "commands: build, force_build, run" >&2
-  exit 1
-fi
+case "$1" in
+  build|force_build|run)
+    "$@"
+    ;;
+  *)
+    echo "'$1' is not a command" >&2
+    echo "commands: build, force_build, run" >&2
+    exit 1
+    ;;
+esac
 
