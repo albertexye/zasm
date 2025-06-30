@@ -29,7 +29,7 @@ build () {
   else
     exe_time=0
   fi
-  if (( src_time > exe_time )); then
+  if [ "$src_time" -gt "$exe_time" ]; then
     _build_builder
   fi
   "$build_dir/zasmb" $@
