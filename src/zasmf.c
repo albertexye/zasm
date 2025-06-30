@@ -540,7 +540,7 @@ static void ZF_exec(ZF_Ctx_T *const ctx, const char cmd) {
       ZCLI_error("invalid command - 'h' for help");
       continue;
     }
-    exec(ctx, cmd);
+    ZF_exec(ctx, cmd);
   }
 }
 
