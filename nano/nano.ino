@@ -12,10 +12,10 @@
  * @{
  */
 constexpr uint8_t PagePin = 6;   /**< EEPROM page select pin. */
-constexpr uint8_t AddrPin = 4;   /**< EEPROM address pin. */
-constexpr uint8_t DataPin = 5;   /**< EEPROM data pin. */
-constexpr uint8_t Clk = 2;       /**< EEPROM clock pin. */
-constexpr uint8_t SClk = 3;      /**< EEPROM strobe clock pin. */
+constexpr uint8_t AddrPin = 4;   /**< Shift register SER pin for address. */
+constexpr uint8_t DataPin = 5;   /**< Shift register SER pin for data input. */
+constexpr uint8_t Clk = 2;       /**< Shift register internal clock pin. */
+constexpr uint8_t SClk = 3;      /**< Shift register external clock pin. */
 constexpr uint8_t WE = 7;        /**< EEPROM write enable pin. */
 /** @} */
 
@@ -42,8 +42,8 @@ constexpr uint8_t Ack[4] = {
 /**
  * @brief Data buffer for serial communication and EEPROM writing.
  *
- * buf[0..3]: header and command
- * buf[4..259]: data payload
+ * buf[0..1]: header and command
+ * buf[2..257]: data payload
  * buf[258..259]: CRC16 hash
  */
 uint8_t buf[260];
