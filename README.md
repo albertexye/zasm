@@ -28,7 +28,45 @@ This project includes:
 
 ## Building & Usage
 
-Use the provided `zasmb.sh` script to build and run the assembler and related tools. See comments in the script for available commands.
+- **Build all tools in debug mode (if needed):**
+
+  ```sh
+  ./zasmb.sh build d a
+  ```
+
+  This will compile the toolchain if sources have changed.
+
+- **Force rebuild all tools in release mode:**
+
+  ```sh
+  ./zasmb.sh force_build r a
+  ```
+
+  This always recompiles, regardless of timestamps.
+
+- **Run a specific tool in debug mode:**
+
+  ```sh
+  ./zasmb.sh run <tool>
+  ```
+
+  Replace `<tool>` with one of: `c` (assembler), `d` (disassembler), `f` (flash tool), `m` (microcode), `n` (number table), `p` (page packer), `s` (simulator). For example:
+
+  ```sh
+  ./zasmb.sh run c code.s out.bin
+  ```
+
+### Tool Overview
+
+- **Assembler (`zasmc`)**: Converts ZASM assembly source files into machine code for the 8-bit computer.
+- **Disassembler (`zasmd`)**: Converts machine code back into human-readable assembly.
+- **Flash Tool (`zasmf`)**: Communicates with the Arduino Nano programmer to flash EEPROMs via serial.
+- **Simulator (`zasms`)**: Runs ZASM programs in a virtual machine for testing and debugging.
+- **Microcode Generator (`zasmm`)**: Generates microcode tables and pin mappings for the hardware.
+- **Number Table Generator (`zasmn`)**: Produces lookup tables for 7-segment display encoding.
+- **Zero Page Packer (`zasmp`)**: Packs and converts 256-byte blocks between different memory formats.
+
+For more details on each tool’s usage and options, run the tool without arguments after building, or consult the source code in the `src/` directory.
 
 ## Documentation
 
