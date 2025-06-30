@@ -1,3 +1,15 @@
+/**
+ * @file stream.c
+ * @brief Implementation of stream abstraction for file and memory buffer I/O operations.
+ *
+ * This file provides the implementation for the stream interface, supporting both file and memory buffer I/O.
+ * Static helper functions are declared and documented at the top of the file. Exported functions are documented in the header.
+ *
+ * Notes:
+ *   - Static functions are only used internally and are not part of the public API.
+ *   - Inline comments are provided in function bodies to clarify logic where necessary.
+ */
+
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -7,6 +19,14 @@
 #include <string.h>
 
 #include "stream.h"
+
+/**
+ * @brief Set the STM_Err_T structure based on the current value of errno.
+ *
+ * If errno is 0, sets the error to STM_ERR_EOF. Otherwise, sets STM_ERR_ERRNO and records errno.
+ * @param err Pointer to error structure to update.
+ */
+static void STM_checkErrno(STM_Err_T* err);
 
 STM_Stream_T STM_fromFile(
   FILE* const file,
@@ -75,12 +95,14 @@ static void STM_checkErrno(STM_Err_T* const err) {
 void STM_close(STM_Stream_T* const stream, STM_Err_T* const err) {
   if (!stream->managed) goto end;
   if (stream->file) {
+    // Close the file if managed
     if (fclose(stream->data.file) == EOF) {
       err->err = STM_ERR_ERRNO;
       err->errno_ = errno;
       return;
     }
   } else {
+    // Free the buffer if managed
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wcast-qual"
     if (stream->read) free((void*)stream->data.buf.ptr.r);
@@ -94,6 +116,7 @@ end:
 uint8_t STM_get(STM_Stream_T* const stream, STM_Err_T* const err) {
   assert(stream->read);
   if (stream->file) {
+    // Read a byte from file
     const int c = fgetc(stream->data.file);
     if (c == EOF) {
       STM_checkErrno(err);
@@ -101,6 +124,7 @@ uint8_t STM_get(STM_Stream_T* const stream, STM_Err_T* const err) {
     }
     return (uint8_t)(c & 0xFF);
   } else {
+    // Read a byte from buffer
     if (stream->data.buf.pos == stream->data.buf.len) {
       err->err = STM_ERR_EOF;
       return 0;
@@ -112,9 +136,11 @@ uint8_t STM_get(STM_Stream_T* const stream, STM_Err_T* const err) {
 void STM_put(STM_Stream_T* const stream, const uint8_t byte, STM_Err_T* const err) {
   assert(!stream->read);
   if (stream->file) {
+    // Write a byte to file
     if (fputc(byte, stream->data.file) == EOF)
       STM_checkErrno(err);
   } else {
+    // Write a byte to buffer
     if (stream->data.buf.pos == stream->data.buf.len) {
       err->err = STM_ERR_EOF;
       return;
@@ -152,10 +178,12 @@ size_t STM_printf(
   size_t len = 0;
   va_start(arg, str);
   if (stream->file) {
+    // Print formatted string to file
     const int ret = vfprintf(stream->data.file, str, arg);
     if (ret < 0) STM_checkErrno(err);
     else len = (size_t)ret;
   } else {
+    // Print formatted string to buffer
     const size_t avail = stream->data.buf.len - stream->data.buf.pos;
     const int ret = vsnprintf(
       (char*)stream->data.buf.ptr.w + stream->data.buf.pos,

@@ -1,3 +1,16 @@
+/**
+ * @file zasmc.c
+ * @brief ZASM Compiler core implementation.
+ *
+ * This file implements the core logic for the ZASM assembler, including tokenization, parsing, code generation, and error handling.
+ *
+ * Only static (internal) functions are documented here. Exported functions are documented in the header file.
+ *
+ * Notes:
+ *   - All static functions are declared at the top of the file with Doxygen documentation.
+ *   - Inline comments are provided in function bodies to clarify logic where necessary.
+ */
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -6,6 +19,107 @@
 #include "stream.h"
 #include "zasm.h"
 #include "zasmc.h"
+
+/**
+ * @brief Converts a character to lowercase if it is uppercase.
+ * @param c Input character.
+ * @return Lowercase character if input is uppercase, otherwise unchanged.
+ */
+static char ZC_toLower(const char c);
+
+/**
+ * @brief Parses an operation token into an operation enum value.
+ * @param token Operation token.
+ * @param err Output error structure.
+ * @return Parsed operation enum value.
+ */
+static ZA_Op_E ZC_parseOp(const ZC_Token_T token, ZC_Err_T* const err);
+
+/**
+ * @brief Parses a register token into a register enum value.
+ * @param token Register token.
+ * @param err Output error structure.
+ * @return Parsed register enum value.
+ */
+static ZA_Reg_E ZC_parseReg(const ZC_Token_T token, ZC_Err_T* const err);
+
+/**
+ * @brief Parses a hexadecimal string into an 8-bit value.
+ * @param s Hexadecimal string.
+ * @param err Output error structure.
+ * @return Parsed 8-bit value.
+ */
+static uint8_t ZC_parseHex(const char* const s, ZC_Err_T* const err);
+
+/**
+ * @brief Parses a binary string into an 8-bit value.
+ * @param s Binary string.
+ * @param err Output error structure.
+ * @return Parsed 8-bit value.
+ */
+static uint8_t ZC_parseBinary(const char* const s, ZC_Err_T* const err);
+
+/**
+ * @brief Parses a decimal string into an 8-bit value.
+ * @param s Decimal string.
+ * @param err Output error structure.
+ * @return Parsed 8-bit value.
+ */
+static uint8_t ZC_parseDecimal(const char* const s, ZC_Err_T* const err);
+
+/**
+ * @brief Parses an immediate token into an 8-bit value.
+ * @param token Immediate token.
+ * @param err Output error structure.
+ * @return Parsed 8-bit value.
+ */
+static uint8_t ZC_parseImm(const ZC_Token_T token, ZC_Err_T* const err);
+
+/**
+ * @brief Checks if a token marks the end of a line or file.
+ * @param token Token to check.
+ * @return true if token is end-of-line or end-of-file, false otherwise.
+ */
+static bool ZC_tokenEnd(const ZC_Token_T token);
+
+/**
+ * @brief Determines the number of tokens in a line.
+ * @param line Line to check.
+ * @return Number of tokens in the line.
+ */
+static size_t ZC_lineSize(const ZC_Line_T line);
+
+/**
+ * @brief Checks if a character is considered whitespace.
+ * @param c Character to check.
+ * @return true if whitespace, false otherwise.
+ */
+static bool ZC_isWhitespace(const char c);
+
+/**
+ * @brief Clears the remainder of the current line in the stream.
+ * @param stream Input stream.
+ * @param err Output stream error structure.
+ */
+static void ZC_clearLine(STM_Stream_T* const stream, STM_Err_T* const err);
+
+/**
+ * @brief Reads a character from the stream and updates token state.
+ * @param stream Input stream.
+ * @param token Token to update.
+ * @param c Output character.
+ * @param err Output error structure.
+ * @return true if end-of-line or end-of-file, false otherwise.
+ */
+static bool ZC_readChar(STM_Stream_T* const stream, ZC_Token_T* const token, char* const c, ZC_Err_T* const err);
+
+/**
+ * @brief Reads a token from the input stream.
+ * @param stream Input stream.
+ * @param err Output error structure.
+ * @return Parsed token.
+ */
+static ZC_Token_T ZC_readToken(STM_Stream_T* const stream, ZC_Err_T* const err);
 
 static const char* const s_ZC_ErrMsg[] = {
   "",
@@ -328,20 +442,19 @@ const char* ZC_getErrMsg(const ZC_Err_T err) {
 #if ZA_TGT == ZA_TGT_C
 #include "zasmcli.h"
 
-static const char* const USAGE = "zasmc src out";
-
 int main(int argc, char* const argv[]) {
-  if (argc != 3) {
-    ZCLI_error("bad arguments");
-    ZCLI_usage(USAGE);
-    return 1;
-  }
-  STM_Stream_T in = ZCLI_openfile(argv[1], true);
-  STM_Stream_T out = ZCLI_openfile(argv[2], false);
+  ZCLI_Arg_T args[] = {
+    {ZCLI_ARG_STREAM_IN, "src", {.stream = {0}}},
+    {ZCLI_ARG_STREAM_OUT, "out", {.stream = {0}}},
+  };
+  ZCLI_ArgList_T arglist = {
+    .args = args,
+    .len = sizeof(args) / sizeof(args[0]),
+  };
+  ZCLI_parseArgs(&arglist, argc, argv);
   ZC_Err_T err;
-  const size_t line_num = ZC_compile(&in, &out, &err);
-  ZCLI_closefile(&in);
-  ZCLI_closefile(&out);
+  const size_t line_num = ZC_compile(&args[0].value.stream, &args[1].value.stream, &err);
+  ZCLI_freeArgs(&arglist);
   if (err.err != ZC_ERR_OK) {
     ZCLI_error("at line %zu: %s", line_num, ZC_getErrMsg(err));
     return 1;

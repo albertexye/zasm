@@ -1,3 +1,15 @@
+/**
+ * @file zasmcli.c
+ * @brief Implementation of command-line interface utilities for the ZASM assembler project.
+ *
+ * This file provides the implementation of CLI helpers for ZASM, including argument parsing,
+ * file I/O, error reporting, and user interaction. Static helper functions are declared and documented
+ * at the top of the file. Exported functions are documented in the corresponding header.
+ *
+ * @note Only static (private) functions are documented here. See zasmcli.h for public API docs.
+ */
+
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -10,11 +22,15 @@
 #include "stream.h"
 #include "zasmcli.h"
 
-void ZCLI_usage(const char *const usage) {
-  puts(ZCLI_COLOR_SUCCESS "usage" ZCLI_COLOR_RESET ": ");
-  puts(usage);
-  putchar('\n');
-}
+/**
+ * @brief Print the usage format for a list of command-line arguments.
+ *
+ * This static helper prints a usage string to stdout, showing the expected arguments
+ * and their types for a given argument list.
+ *
+ * @param args Pointer to the argument list structure.
+ */
+static void ZCLI_printArgsFmt(const ZCLI_ArgList_T *args);
 
 void ZCLI_error(const char *const msg, ...) {
   fputs(ZCLI_COLOR_ERROR "error" ZCLI_COLOR_RESET ": ", stderr);
@@ -32,18 +48,15 @@ void ZCLI_errno(void) {
 
 void ZCLI_showmem(const uint8_t *const mem, const size_t len) {
   for (size_t i = 0; i < len; ++i) {
+    // Print a new line every 16 bytes, with offset
     if (i > 0 && i % 16 == 0)
       printf("\n%zux", i);
+    // Add a space every 4 bytes for readability
     if (i % 4 == 0)
       printf(" ");
     printf("%hhx", mem[i]);
   }
   printf("\n");
-}
-
-bool ZCLI_filetype(const char *const name, const char type) {
-  const size_t len = strlen(name);
-  return name[len - 1] == type && name[len - 2] == '.';
 }
 
 STM_Stream_T ZCLI_openfile(const char *const path, const bool read) {
@@ -106,8 +119,7 @@ bool ZCLI_getcmd(char *const cmd) {
   return false;
 }
 
-bool ZCLI_inputfile(STM_Stream_T *const stream, const char *const prompt,
-                       const bool read) {
+bool ZCLI_inputfile(STM_Stream_T *const stream, const char *const prompt, const bool read) {
   printf("%s", prompt);
   char path[256];
   if (fgets(path, sizeof(path), stdin) == NULL) {
@@ -128,3 +140,71 @@ bool ZCLI_inputfile(STM_Stream_T *const stream, const char *const prompt,
   *stream = ZCLI_openfile(path, read);
   return true;
 }
+
+static void ZCLI_printArgsFmt(const ZCLI_ArgList_T *const args) {
+  printf(ZCLI_COLOR_SUCCESS "usage:" ZCLI_COLOR_RESET);
+  for (size_t i = 0; i < args->len; ++i) {
+    printf(" %s:", args->args[i].name);
+    switch (args->args[i].type) {
+      case ZCLI_ARG_STREAM_IN:
+        printf("<in>");
+        break;
+      case ZCLI_ARG_STREAM_OUT:
+        printf("<out>");
+        break;
+      case ZCLI_ARG_CHAR:
+        printf("<char>");
+        break;
+      default:
+        assert(false);
+    }
+  }
+  printf("\n");
+}
+
+void ZCLI_parseArgs(
+  ZCLI_ArgList_T *const args,
+  int argc, char *const argv[]
+) {
+  if ((size_t)argc - 1 != args->len) {
+    ZCLI_error("bad number of arguments");
+    ZCLI_printArgsFmt(args);
+    goto error;
+  }
+  for (size_t i = 0; i < args->len; ++i) {
+    switch (args->args[i].type) {
+      case ZCLI_ARG_STREAM_IN:
+        args->args[i].value.stream = ZCLI_openfile(argv[i + 1], true);
+        break;
+      case ZCLI_ARG_STREAM_OUT:
+        args->args[i].value.stream = ZCLI_openfile(argv[i + 1], false);
+        break;
+      case ZCLI_ARG_CHAR:
+        if (strlen(argv[i + 1]) != 1) {
+          ZCLI_error("argument '%s' must be a single character", args->args[i].name);
+          goto error;
+        }
+        args->args[i].value.c = argv[i + 1][0];
+        break;
+      default:
+        assert(false);
+    }
+  }
+  return;
+error:
+  ZCLI_freeArgs(args);
+  exit(1);
+}
+
+void ZCLI_freeArgs(ZCLI_ArgList_T *const args) {
+  for (size_t i = 0; i < args->len; ++i) {
+    if (args->args[i].type == ZCLI_ARG_STREAM_IN ||
+        args->args[i].type == ZCLI_ARG_STREAM_OUT) {
+      STM_Err_T err = {0};
+      STM_close(&args->args[i].value.stream, &err);
+      if (err.err != STM_ERR_OK)
+        ZCLI_error("failed to close stream: %s", STM_getErrMsg(err));
+    }
+  }
+}
+

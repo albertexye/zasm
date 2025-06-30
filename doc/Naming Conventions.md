@@ -61,6 +61,8 @@ All type definitions (structs, enums, unions, and `typedef`s for basic types/fun
   * `MOD_functionName()`
   * *Examples:* `DP_parseData()`, `NM_connectToServer()`
 
+* Every functions must be decalred first. Exported functions must be declared in the corresponding .h file, whereas internal helper functions must be static and declared at the beginning of the .c file. Exported functions don't need to be declared in the .c file.
+
 -----
 
 ## 4\. Variables
