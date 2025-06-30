@@ -1,4 +1,4 @@
-# ZASM 8-bit Computer EEPROM Pin Configuration
+# ZASM 8-bit Computer: EEPROM Pin Configuration
 
 ## Table of Contents
 
