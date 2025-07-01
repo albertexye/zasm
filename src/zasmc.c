@@ -322,8 +322,10 @@ static bool ZC_readChar(STM_Stream_T* const stream, ZC_Token_T* const token, cha
   if (*c == ';') {
     ZC_clearLine(stream, &serr);
     token->eol = true;
+    if (serr.err == STM_ERR_EOF) {
+      token->eof = true;
+    } else if (serr.err != STM_ERR_OK) {
     token->eof = true;
-    if (serr.err != STM_ERR_OK && serr.err != STM_ERR_EOF) {
       err->err = ZC_ERR_STM;
       err->code.stm = serr;
     }
@@ -367,7 +369,7 @@ ZC_Line_T ZC_tokenize(STM_Stream_T* const stream, ZC_Err_T* const err) {
     }
   }
   const ZC_Token_T token = ZC_readToken(stream, err);
-  if (err->err == ZC_ERR_OK) return line;
+  if (err->err != ZC_ERR_OK) return line;
   if (ZC_tokenEnd(token) && token.str[0] == 0) {
     line.tokens[2].eol = token.eol;
     line.tokens[2].eof = token.eof;
