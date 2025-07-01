@@ -215,6 +215,16 @@ static void exec(ZS_State_T* const state, const char cmd) {
     case 'h':
       printf(COMMANDS);
       break;
+    case 'j':
+      printf("run to address>");
+      uint8_t addr;
+      if (!ZCLI_readbin(&addr))
+        ZCLI_error("invalid 8-bit binary number");
+      while (state->pc != addr && !state->halted) {
+        ZS_exec(state);
+      }
+      printf("jumped to %hhu\n", addr);
+      break;
     case 'm':
       ZCLI_showmem(state->mem, sizeof(state->mem));
       break;
