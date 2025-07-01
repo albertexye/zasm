@@ -272,7 +272,7 @@ int main(const int argc, char* const argv[]) {
   STM_Err_T err;
   const size_t len = STM_read(&args[0].value.stream, state.rom, sizeof(state.rom), &err);
   ZCLI_freeArgs(&arglist);
-  if (err.err != STM_ERR_OK) {
+  if (err.err != STM_ERR_OK && err.err != STM_ERR_EOF) {
     ZCLI_error(STM_getErrMsg(err));
     return 1;
   }
