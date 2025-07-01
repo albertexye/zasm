@@ -49,19 +49,19 @@ void ZCLI_errno(void) {
 void ZCLI_showmem(const uint8_t *const mem, const size_t len) {
   for (size_t i = 0; i < len; ++i) {
     // Print a new line every 16 bytes, with offset
-    if (i > 0 && i % 16 == 0)
-      printf("\n%zux", i);
+    if (i % 16 == 0)
+      printf("\n%02x|", (uint8_t)i);
     // Add a space every 4 bytes for readability
     if (i % 4 == 0)
       printf(" ");
-    printf("%hhx", mem[i]);
+    printf("%02x", mem[i]);
   }
   printf("\n");
 }
 
 STM_Stream_T ZCLI_openfile(const char *const path, const bool read) {
   FILE *const file = fopen(path, read ? "rb" : "wb");
-  if (file == NULL) {
+  if (file == nullptr) {
     ZCLI_errno();
     exit(1);
   }
