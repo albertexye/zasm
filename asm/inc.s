@@ -1,3 +1,4 @@
+; This example increments the display forever.
 rst     ; reset
 ldi c 1 ; set conditional
 ldi y 1 ; add one at a time
