@@ -26,7 +26,7 @@ const char g_ZA_OpNames[7][4] = {
 /**
  * @brief String names for each register (indexed by ZA_Reg_E).
  */
-const char g_ZA_RegNames[14] = "acgmxynpbdjlsz";
+const char g_ZA_RegNames[14] = "acgmxynpbjlsdz";
 
 bool ZA_checkInst(const ZA_Inst_T inst) {
   // Validate instruction based on opcode and argument ranges
