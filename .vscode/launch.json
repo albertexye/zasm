@@ -1,0 +1,43 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Zasmc",
+            "program": "${workspaceFolder}/out/debug/c/zasmc",
+            "args": [ 
+                "${input:arg1}",
+                "${input:arg2}"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Zasms",
+            "program": "${workspaceFolder}/out/debug/s/zasms",
+            "args": [ 
+                "${input:arg2}"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "arg1",
+            "type": "promptString",
+            "description": "Enter arg1",
+            "default": ""
+        },
+        {
+            "id": "arg2",
+            "type": "promptString",
+            "description": "Enter arg2",
+            "default": ""
+        }
+    ]
+}
