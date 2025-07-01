@@ -7,20 +7,23 @@
 
 rst
 
+; record the secret number
+mov g b
+
 ; create a right shift lookup table
 ; loop start
-ldi y 1 ; [lookup] 0x1
+ldi y 1 ; [lookup] 0x2
 mov a x
 mov a l
 mov m x
 mov x s
 ldi y 0xF
 mov c d
-jni 0x1 ; jni [lookup]
+jni 0x2 ; jni [lookup]
 ; loop end
 
 ; store the secret number
-mov x b ; x = secret
+mov x g ; x = secret
 mov a x ; a = secret
 mov a l ; a = secret << 4
 mov a m ; a = secret & 0xF
@@ -36,35 +39,35 @@ mov m c ; m[2] = secret >> 4
 ; m[5] = [lower]
 ldi a 0x4
 mov x l
-ldi y 0x7
+ldi y 0x8
 ldi a 0x5
 mov m s
 ; m[6] = [less]
 ldi a 0x5
 mov x l
-ldi y 0xA
+ldi y 0xB
 ldi a 0x6
 mov m s
 ; m[7] = [greater]
 ldi a 0x5
 mov x l
-ldi y 0x7
+ldi y 0x8
 ldi a 0x7
 mov m s
 ; m[8] = [correct]
 ldi a 0x5
 mov x l
-ldi y 0xD
+ldi y 0xE
 ldi a 0x8
 mov m s
 ; m[9] = [compare]
 ldi a 0x2
 mov x l
-ldi y 0xD
+ldi y 0xE
 ldi a 0x9
 mov m s
 
-; [compare] 0x2D
+; [compare] 0x2E
 ; store the guess number
 mov x b ; x = guess
 mov a x ; a = guess
@@ -98,7 +101,7 @@ ldi a 0x6
 jnz m ; jnz [less]
 
 ; load the lower 4 bits
-; [lower] 0x47
+; [lower] 0x48
 ldi a 0x1
 mov y m ; y = secret & 0xF
 ldi a 0x3
@@ -118,17 +121,17 @@ jez m ; jez [greater]
 ldi a 0x6
 jnz m ; jnz [less]
 
-; [greater] 0x57
+; [greater] 0x58
 ldi n 0xB
 ldi a 0x9
 jez m ; jez [compare]
 
-; [less] 0x5A
+; [less] 0x5B
 ldi n 0x5
 ldi a 0x9
 jnz m ; jnz [compare]
 
-; [correct] 0x5D
+; [correct] 0x5E
 ldi n 0xC
 ldi a 0x9
 jez m ; jez [compare]
