@@ -325,7 +325,7 @@ static bool ZC_readChar(STM_Stream_T* const stream, ZC_Token_T* const token, cha
     if (serr.err == STM_ERR_EOF) {
       token->eof = true;
     } else if (serr.err != STM_ERR_OK) {
-    token->eof = true;
+      token->eof = true;
       err->err = ZC_ERR_STM;
       err->code.stm = serr;
     }
@@ -413,22 +413,22 @@ size_t ZC_compile(
   STM_Stream_T* const out,
   ZC_Err_T* const err
 ) {
-  size_t line_num = 1;
-  for (;;++line_num) {
+  size_t lineNum = 1;
+  for (;;++lineNum) {
     const ZC_Line_T line = ZC_tokenize(in, err);
-    if (err->err != ZC_ERR_OK) return line_num;
-    if (line.tokens[0].eof) return line_num;
+    if (err->err != ZC_ERR_OK) return lineNum;
+    if (line.tokens[0].eof) return lineNum;
     if (line.tokens[0].eol && line.tokens[0].str[0] == 0) continue;
     const ZA_Inst_T inst = ZC_parse(line, err);
-    if (err->err != ZC_ERR_OK) return line_num;
+    if (err->err != ZC_ERR_OK) return lineNum;
     const uint8_t code = ZC_generate(inst, err);
-    if (err->err != ZC_ERR_OK) return line_num;
+    if (err->err != ZC_ERR_OK) return lineNum;
     STM_Err_T serr = {0};
     STM_put(out, code, &serr);
     if (serr.err != STM_ERR_OK) {
       err->err = ZC_ERR_STM;
       err->code.stm = serr;
-      return line_num;
+      return lineNum;
     }
   }
 }

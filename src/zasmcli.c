@@ -5,8 +5,6 @@
  * This file provides the implementation of CLI helpers for ZASM, including argument parsing,
  * file I/O, error reporting, and user interaction. Static helper functions are declared and documented
  * at the top of the file. Exported functions are documented in the corresponding header.
- *
- * @note Only static (private) functions are documented here. See zasmcli.h for public API docs.
  */
 
 #include <assert.h>
@@ -122,7 +120,7 @@ bool ZCLI_getcmd(char *const cmd) {
 bool ZCLI_inputfile(STM_Stream_T *const stream, const char *const prompt, const bool read) {
   printf("%s", prompt);
   char path[256];
-  if (fgets(path, sizeof(path), stdin) == NULL) {
+  if (fgets(path, sizeof(path), stdin) == nullptr) {
     ZCLI_errno();
     return false;
   }
