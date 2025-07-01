@@ -98,7 +98,8 @@ void ZS_exec(ZS_State_T* const state) {
   switch (inst.op) {
     case ZA_OP_MOV:
       // Move value from one register to another
-      state->r[inst.val.mov.r1] = ZS_getReg(state, inst.val.mov.r2);
+      if (inst.val.mov.r1 == ZA_REG_M) state->mem[state->r[ZA_REG_A]] = ZS_getReg(state, inst.val.mov.r2);
+      else state->r[inst.val.mov.r1] = ZS_getReg(state, inst.val.mov.r2);
       break;
     case ZA_OP_LDI:
       // Load immediate value into register
