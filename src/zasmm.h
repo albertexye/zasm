@@ -21,9 +21,9 @@
 /**
  * @brief Output pin mapping for microcode signals.
  *
- * Array of hardware pin numbers corresponding to the 12 output signals.
+ * Array of hardware pin numbers corresponding to the 13 output signals.
  */
-extern const uint8_t ZM_OUT_PINS[12];
+extern const uint8_t ZM_OUT_PINS[13];
 
 /**
  * @brief Input pin mapping for microcode signals.
@@ -32,33 +32,28 @@ extern const uint8_t ZM_OUT_PINS[12];
  */
 extern const uint8_t ZM_IN_PINS[8];
 
-/** @brief Pin number for the ALU control signal. */
-extern const uint8_t ZM_ALU_PIN;
-/** @brief Pin number for the JMP (jump) control signal. */
-extern const uint8_t ZM_JMP_PIN;
-/** @brief Pin number for the RST (reset) control signal. */
-extern const uint8_t ZM_RST_PIN;
-/** @brief Pin number for the HLT (halt) control signal. */
-extern const uint8_t ZM_HLT_PIN;
-/** @brief Pin number for the INS (instruction) control signal. */
-extern const uint8_t ZM_INS_PIN;
+/** @brief Pin number for the subtraction control signal. */
+extern const uint8_t ZM_SB_PIN;
+/** @brief Pin number for the CN (conditional negation) control signal. */
+extern const uint8_t ZM_CN_PIN;
+/** @brief Pin number for the HT (halt) control signal. */
+extern const uint8_t ZM_HT_PIN;
 
 /**
  * @brief Microcode signal structure.
  *
  * Represents the set of active microcode signals for a single instruction.
- * - out: Output signals (12 bits)
+ * - out: Output signals (13 bits)
  * - in: Input signals (8 bits)
- * - alu: ALU control
- * - jmp: Jump control
- * - rst: Reset control
- * - hlt: Halt control
- * - ins: Instruction control
+ * - sb: Subtraction control
+ * - cn: Conditional negation
+ * - rs: Reset control
+ * - ht: Halt control
  */
 typedef struct {
-  bool out[12];
+  bool out[13];
   bool in[8];
-  bool alu, jmp, rst, hlt, ins;
+  bool sb, cn, ht;
 } ZM_Code_T;
 
 /**

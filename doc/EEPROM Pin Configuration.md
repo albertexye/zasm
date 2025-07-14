@@ -186,39 +186,39 @@ EEPROM 0 Pin Connections:
 | EEPROM | Signal    | Description                       |
 | ------ | --------- | --------------------------------- |
 | IO0    | ~XO       | X register output enable          |
-| IO0    | ~SO (~DO) | ALU output enable                 |
-| IO0    | ~YO       | Y register output enable          |
-| IO0    | ~AO       | A register output enable          |
-| IO0    | ~LO       | Left shift register output enable |
-| IO0    | ~BO       | Button input output enable        |
-| IO0    | ~MO       | RAM output enable                 |
-| IO0    | ~GO       | G register output enable          |
+| IO1    | ~SO (~DO) | ALU output enable                 |
+| IO2    | ~YO       | Y register output enable          |
+| IO3    | ~AO       | A register output enable          |
+| IO4    | ~LO       | Left shift register output enable |
+| IO5    | ~BO       | Button input output enable        |
+| IO6    | ~MO       | RAM output enable                 |
+| IO7    | ~GO       | G register output enable          |
 
 EEPROM 1 Pin Connections:
 
 | EEPROM | Signal | Description                 |
 | ------ | ------ | --------------------------- |
 | IO0    | ~CO    | C register output enable    |
-| IO0    | ~JO    | Jump register output enable |
-| IO0    | ~PO    | PC output enable            |
-| IO0    | ~IO    | Immediate output enable     |
-| IO0    | XI     | X register load enable      |
-| IO0    | YI     | Y register load enable      |
-| IO0    | AI     | A register load enable      |
-| IO0    | MI     | RAM write enable            |
+| IO1    | ~JO    | Jump register output enable |
+| IO2    | ~PO    | PC output enable            |
+| IO3    | ~IO    | Immediate output enable     |
+| IO4    | XI     | X register load enable      |
+| IO5    | YI     | Y register load enable      |
+| IO6    | AI     | A register load enable      |
+| IO7    | ~MI    | RAM write enable            |
 
 EEPROM 2 Pin Connections:
 
 | EEPROM | Signal | Description                |
 | ------ | ------ | -------------------------- |
 | IO0    | GI     | G register load enable     |
-| IO0    | CI     | C register load enable     |
-| IO0    | PI     | PC load enable             |
-| IO0    | NI     | Number display load enable |
-| IO0    | SB     | ALU sub enable             |
-| IO0    | CN     | Conditional negate enable  |
-| IO0    | HT     | Halt                       |
-| IO0    | ~RS    | PC reset                   |
+| IO1    | CI     | C register load enable     |
+| IO2    | PI     | PC load enable             |
+| IO3    | NI     | Number display load enable |
+| IO4    | SB     | ALU sub enable             |
+| IO5    | CN     | Conditional negate enable  |
+| IO6    | HT     | Halt                       |
+| IO7    | ~RS    | PC reset                   |
 
 Note: '~' means the pin is active-low.
 

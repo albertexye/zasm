@@ -63,8 +63,17 @@ typedef struct {
 typedef enum : uint8_t {
   ZF_RCV_STATE_NONE, /**< No data received. */
   ZF_RCV_STATE_OP,   /**< Operation byte expected. */
+  ZF_RCV_STATE_DATA,
   ZF_RCV_STATE_CRC, /**< CRC expected. */
 } ZF_Rcv_State_E;
+
+typedef enum : uint8_t {
+  ZF_EVT_NONE,
+  ZF_EVT_RCV,
+  ZF_EVT_DATA,
+  ZF_EVT_ACK,
+  ZF_EVT_BAD_WRITE,
+} ZF_Evt_E;
 
 /**
  * @struct ZF_Ctx_T
@@ -104,7 +113,7 @@ void ZF_close(ZF_Ctx_T* ctx, ZF_Err_T* const err);
  * @param err Pointer to error structure to receive error information.
  * @return true if an ACK was received, false otherwise.
  */
-bool ZF_poll(ZF_Ctx_T* ctx, ZF_Err_T* err);
+ZF_Evt_E ZF_poll(ZF_Ctx_T* ctx, ZF_Err_T* err);
 
 /**
  * @brief Block until an ACK is received or a timeout occurs.
@@ -114,7 +123,7 @@ bool ZF_poll(ZF_Ctx_T* ctx, ZF_Err_T* err);
  * @param err Pointer to error structure to receive error information.
  * @return true if ACK received before timeout, false otherwise.
  */
-bool ZF_block(ZF_Ctx_T* ctx, uint32_t timeout, ZF_Err_T* err);
+ZF_Evt_E ZF_block(ZF_Ctx_T* ctx, uint32_t timeout, ZF_Err_T* err);
 
 /**
  * @brief Send a ping command to the device.
@@ -133,6 +142,10 @@ void ZF_ping(ZF_Ctx_T* ctx, ZF_Err_T* err);
  * @param err Pointer to error structure to receive error information.
  */
 void ZF_write(ZF_Ctx_T* ctx, const void* data, bool page, ZF_Err_T* err);
+
+void ZF_read(ZF_Ctx_T* ctx, bool page, ZF_Err_T* err);
+
+const uint8_t* ZF_getData(ZF_Ctx_T* ctx);
 
 /**
  * @brief Get a human-readable error message for a ZF_Err_T error.

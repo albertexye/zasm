@@ -28,6 +28,10 @@
 #define WARNINGS ""
 #endif
 
+#ifndef ARENA_SIZE
+#define ARENA_SIZE (64 * 1024)
+#endif
+
 #define COLOR_ERROR "\x1b[31m"
 #define COLOR_SUCCESS "\x1b[32m"
 #define COLOR_IGNORE "\x1b[90m"
@@ -64,7 +68,7 @@ struct StrBuilder {
 static void printError(const char *const err, ...);
 
 // Arena allocator state
-static uint8_t ArenaMem[8192];
+static uint8_t ArenaMem[ARENA_SIZE];
 static size_t ArenaPos = 0;
 
 /**
@@ -286,7 +290,7 @@ static void printError(const char *const err, ...) {
 
 static void *zalloc(const size_t len) {
   if (ArenaPos + len > sizeof(ArenaMem)) {
-    printError("OOM");
+    printError("OOM, please increase ARENA_SIZE");
     exit(1);
   }
   void *const mem = ArenaMem + ArenaPos;
@@ -346,9 +350,10 @@ static char *buildPath(struct StrBuilder *const sb) {
     stripPath(sb->strs[i], &len);
     total += len;
   }
-  total += sb->len;
+  total += sb->len + (sb->strs[0][0] == '/');
   char *const path = zalloc(total);
   size_t off = 0;
+  if (sb->strs[0][0] == '/') path[off++] = '/';
   for (size_t i = 0; i < sb->len; ++i) {
     size_t len;
     const char *const p = stripPath(sb->strs[i], &len);

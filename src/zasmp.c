@@ -5,16 +5,13 @@
  * This file provides the implementation for transforming 256-byte blocks between different
  * ZP target formats (instruction, number, microcode) as used in the assembler. The static
  * functions below perform the core byte mapping and transformation logic.
- *
- * Example usage:
- *   See ZP_pack() in zasmp.h for the main interface.
- *
- * Note: Exported functions are documented in the header file.
  */
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
+#include "stream.h"
 #include "zasm.h"
 #include "zasmp.h"
 
@@ -47,19 +44,14 @@ static uint8_t ZP_mapByte(const ZP_Convert_T table, const uint8_t byte);
  */
 static void ZP_mapBytes(const ZP_Convert_T table, uint8_t* const bytes);
 
-/**
- * @brief Reverses the order of 256 bytes in the array.
- *
- * @param bytes Array of 256 bytes to be reversed in-place.
- */
-static void ZP_reverseBytes(uint8_t* const bytes);
+static void ZP_reverseBytes(uint8_t* bytes);
 
 static const ZP_Convert_T s_ZP_InstTable = {
   7, 6, 5, 4, 3, 2, 1, 0
 };
 
 static const ZP_Convert_T s_ZP_Number = {
-  3, 0, 1, 2, 4, 5, 6, 7
+  1, 2, 3, 0, 4, 5, 6, 7
 };
 
 static const ZP_Convert_T s_ZP_Microcode = {
@@ -88,25 +80,31 @@ static void ZP_mapBytes(const ZP_Convert_T table, uint8_t* const bytes) {
 }
 
 static void ZP_reverseBytes(uint8_t* const bytes) {
-  // Reverse the array in-place
-  for (size_t i = 0; i < 128; ++i) {
-    const uint8_t tmp = bytes[i];
-    bytes[i] = bytes[255 - i];
-    bytes[255 - i] = tmp;
+  // Flip the binary representation of each address
+  uint8_t buf[256];
+  for (size_t i = 0; i < 256; ++i) {
+    uint8_t addr = 0;
+    for (size_t j = 0; j < 8; ++j) {
+      addr |= ((i >> j) & 1) << (7 - j);
+    }
+    buf[addr] = bytes[i];
   }
+  // Copy the reversed bytes back to the original array
+  memcpy(bytes, buf, 256);
 }
 
 void ZP_pack(STM_Stream_T *const in, STM_Stream_T *const out, ZP_Target_E target, STM_Err_T *const err) {
   uint8_t bytes[256] = {0};
   STM_read(in, bytes, 256, err);
-  if (err->err != STM_ERR_OK) return;
+  if (err->err != STM_ERR_OK && err->err != STM_ERR_EOF) return;
+  err->err = STM_ERR_OK; // Reset error to OK after reading
   switch (target) {
     case ZP_TARGET_INST:
       ZP_mapBytes(s_ZP_InstTable, bytes);
-      ZP_reverseBytes(bytes);
       break;
     case ZP_TARGET_NUMBER:
       ZP_mapBytes(s_ZP_Number, bytes);
+      ZP_reverseBytes(bytes);
       break;
     case ZP_TARGET_MICROCODE:
       ZP_mapBytes(s_ZP_Microcode, bytes);
@@ -151,7 +149,7 @@ int main(const int argc, char *argv[]) {
   STM_Err_T err = {0};
   ZP_pack(&args[0].value.stream, &args[1].value.stream, target, &err);
   ZCLI_freeArgs(&argList);
-  if (err.err != STM_ERR_OK) {
+  if (err.err != STM_ERR_OK && err.err != STM_ERR_EOF) {
     ZCLI_error(STM_getErrMsg(err));
     return 1;
   }

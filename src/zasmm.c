@@ -39,13 +39,15 @@ static void ZM_setOut(ZM_Code_T *const code, const ZA_Reg_E r);
  */
 static void setPin(ZM_Layout_T *const layout, const uint8_t pin);
 
-const uint8_t ZM_OUT_PINS[12] = {0};
-const uint8_t ZM_IN_PINS[8] = {0};
-const uint8_t ZM_ALU_PIN = 0;
-const uint8_t ZM_JMP_PIN = 0;
-const uint8_t ZM_RST_PIN = 0;
-const uint8_t ZM_HLT_PIN = 0;
-const uint8_t ZM_INS_PIN = 0;
+const uint8_t ZM_OUT_PINS[13] = {
+  3, 8, 7, 6, 0, 2, 0, 10, 5, 9, 4, 1, 11
+};
+const uint8_t ZM_IN_PINS[8] = {
+  14, 17, 16, 15, 12, 13, 19, 18
+};
+const uint8_t ZM_SB_PIN = 20;
+const uint8_t ZM_CN_PIN = 21;
+const uint8_t ZM_HT_PIN = 22;
 
 static void ZM_setOut(ZM_Code_T *const code, const ZA_Reg_E r) {
   // Ignore NOP and Z registers
@@ -54,7 +56,7 @@ static void ZM_setOut(ZM_Code_T *const code, const ZA_Reg_E r) {
   if (r == ZA_REG_D) {
     // Special case: D register outputs to S and triggers ALU
     code->out[ZA_REG_S] = true;
-    code->alu = true;
+    code->sb = true;
   } else {
     code->out[r] = true;
   }
@@ -72,11 +74,11 @@ ZM_Code_T ZM_translate(const ZA_Inst_T inst) {
   case ZA_OP_LDI:
     // LDI: Load immediate value into register
     code.in[inst.val.ldi.r] = true;
-    code.ins = true;
+    code.out[12] = true;
     break;
   case ZA_OP_JEZ:
     // JEZ: Jump if equal to zero
-    code.jmp = true;
+    code.cn = true;
     [[fallthrough]];
   case ZA_OP_JNZ:
     // JNZ: Jump if not zero
@@ -85,16 +87,18 @@ ZM_Code_T ZM_translate(const ZA_Inst_T inst) {
     break;
   case ZA_OP_JNI:
     // JNI: Jump if negative immediate
-    code.ins = true;
     code.in[ZA_REG_P] = true;
+    code.out[12] = true;
     break;
   case ZA_OP_HLT:
     // HLT: Halt
-    code.hlt = true;
+    code.ht = true;
     break;
   case ZA_OP_RST:
     // RST: Reset
-    code.rst = true;
+    for (uint8_t i = 0; i < sizeof(code.in) / sizeof(code.in[0]); ++i) {
+      code.in[i] = true;
+    }
     break;
   default:
     assert(false);
@@ -106,8 +110,7 @@ ZM_Code_T ZM_activeLow(ZM_Code_T code) {
   constexpr size_t nOut = sizeof(code.out) / sizeof(code.out[0]);
   // Invert all output signals for active-low logic
   for (size_t i = 0; i < nOut; ++i) code.out[i] = !code.out[i];
-  code.rst = !code.rst;
-  code.ins = !code.ins;
+  code.in[ZA_REG_M] = !code.in[ZA_REG_M];
   return code;
 }
 
@@ -120,7 +123,7 @@ ZM_Layout_T ZM_map(const ZM_Code_T code) {
   ZM_Layout_T layout = {0};
   // Map output signals to pins
   for (size_t i = 0; i < sizeof(code.out) / sizeof(code.out[0]); ++i) {
-    if (!code.out[i]) continue;
+    if (i == ZA_REG_N || !code.out[i]) continue;
     setPin(&layout, ZM_OUT_PINS[i]);
   }
   // Map input signals to pins
@@ -129,11 +132,9 @@ ZM_Layout_T ZM_map(const ZM_Code_T code) {
     setPin(&layout, ZM_IN_PINS[i]);
   }
   // Map control signals to pins
-  if (code.alu) setPin(&layout, ZM_ALU_PIN);
-  if (code.jmp) setPin(&layout, ZM_JMP_PIN);
-  if (code.rst) setPin(&layout, ZM_RST_PIN);
-  if (code.hlt) setPin(&layout, ZM_HLT_PIN);
-  if (code.ins) setPin(&layout, ZM_INS_PIN);
+  if (code.sb) setPin(&layout, ZM_SB_PIN);
+  if (code.cn) setPin(&layout, ZM_CN_PIN);
+  if (code.ht) setPin(&layout, ZM_HT_PIN);
   return layout;
 }
 

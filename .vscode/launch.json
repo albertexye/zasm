@@ -24,6 +24,39 @@
                 "${input:arg2}"
             ],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Zasmp",
+            "program": "${workspaceFolder}/out/debug/p/zasmp",
+            "args": [ 
+                "${input:arg1}",
+                "${input:arg2}",
+                "${input:arg3}"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Zasmm",
+            "program": "${workspaceFolder}/out/debug/m/zasmm",
+            "args": [ 
+                "${input:arg1}",
+                "${input:arg2}"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Zasmf",
+            "program": "${workspaceFolder}/out/debug/f/zasmf",
+            "args": [ 
+                "${input:arg1}"
+            ],
+            "cwd": "${workspaceFolder}"
         }
     ],
     "inputs": [
@@ -35,6 +68,12 @@
         },
         {
             "id": "arg2",
+            "type": "promptString",
+            "description": "Enter arg2",
+            "default": ""
+        },
+        {
+            "id": "arg3",
             "type": "promptString",
             "description": "Enter arg2",
             "default": ""

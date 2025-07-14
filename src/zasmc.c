@@ -454,7 +454,7 @@ int main(int argc, char* const argv[]) {
     .len = sizeof(args) / sizeof(args[0]),
   };
   ZCLI_parseArgs(&arglist, argc, argv);
-  ZC_Err_T err;
+  ZC_Err_T err = {0};
   const size_t line_num = ZC_compile(&args[0].value.stream, &args[1].value.stream, &err);
   ZCLI_freeArgs(&arglist);
   if (err.err != ZC_ERR_OK) {

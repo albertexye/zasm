@@ -11,15 +11,18 @@
  * @defgroup Pins Pin assignments
  * @{
  */
-constexpr uint8_t PagePin = 6;   /**< EEPROM page select pin. */
-constexpr uint8_t AddrPin = 4;   /**< Shift register SER pin for address. */
-constexpr uint8_t DataPin = 5;   /**< Shift register SER pin for data input. */
-constexpr uint8_t Clk = 2;       /**< Shift register internal clock pin. */
-constexpr uint8_t SClk = 3;      /**< Shift register external clock pin. */
-constexpr uint8_t WE = 7;        /**< EEPROM write enable pin. */
+constexpr uint8_t AddressPin = A0;
+constexpr uint8_t StorageClockPin = A1;
+constexpr uint8_t ShiftClockPin = A2;
+constexpr uint8_t OutputEnablePin = 7;
+constexpr uint8_t WriteEnablePin = 6;
+constexpr uint8_t PagePin = 5;
+constexpr uint8_t DataPins[8] = {
+  2, 3, 4, 12, 11, 10, 9, 8
+};
 /** @} */
 
-constexpr uint16_t Timeout = 500; /**< Serial read timeout in milliseconds. */
+constexpr uint16_t Timeout = 200; /**< Serial read timeout in milliseconds. */
 
 /**
  * @enum Op_E
@@ -29,14 +32,17 @@ typedef enum {
   OP_PING,      /**< Ping command. */
   OP_SEND_LOW,  /**< Send data to low page. */
   OP_SEND_HIGH, /**< Send data to high page. */
+  OP_READ_LOW,
+  OP_READ_HIGH,
   OP_ACK,       /**< Acknowledge command. */
+  OP_BAD_WRITE,
 } Op_E;
 
 /**
  * @brief Acknowledgment packet sent after successful operation.
  */
 constexpr uint8_t Ack[4] = {
-  0xAA, OP_ACK, 0xA1, 0x3E
+  0xAA, OP_ACK, 0xA3, 0xBE
 };
 
 /**
@@ -86,7 +92,7 @@ static uint16_t crc16Finalize(uint16_t hash) {
  * @param len Number of bytes to hash.
  * @return CRC16 value.
  */
-static uint16_t crc16(const uint16_t len) {
+static uint16_t crc16(uint16_t len) {
   uint16_t hash = 0;
   for (uint16_t i = 0; i < len; ++i)
     hash = crc16Update(buf[i], hash);
@@ -97,9 +103,25 @@ static uint16_t crc16(const uint16_t len) {
  * @brief Check if the received data's CRC16 matches the transmitted hash.
  * @return true if hash matches, false otherwise.
  */
-static bool checkHash() {
-  const uint16_t hash = crc16(258);
-  return (hash >> 8) == buf[258] && (hash & 0xFF) == buf[259];
+static bool checkHash(const bool data) {
+  if (data) {
+    const uint16_t hash = crc16(258);
+    return (hash >> 8) == buf[258] && (hash & 0xFF) == buf[259];
+  }
+  const uint16_t hash = crc16(2);
+  return (hash >> 8) == buf[2] && (hash & 0xFF) == buf[3];
+}
+
+static void makeHash(const bool data) {
+  if (data) {
+    const uint16_t hash = crc16(258);
+    buf[258] = (uint8_t)(hash >> 8);
+    buf[259] = (uint8_t)(hash & 0xFF);
+  } else {
+    const uint16_t hash = crc16(2);
+    buf[2] = (uint8_t)(hash >> 8);
+    buf[3] = (uint8_t)(hash & 0xFF);
+  }
 }
 
 /**
@@ -108,18 +130,27 @@ static bool checkHash() {
  * @param byte Data byte to write.
  * @param page Page select (false = low, true = high).
  */
-static void eepromWrite(const uint8_t addr, const uint8_t byte, const bool page) {
-  digitalWrite(PagePin, page);
+static void eepromWrite(const uint8_t addr, const uint8_t byte) {
   for (uint8_t i = 0; i < 8; ++i) {
-    digitalWrite(AddrPin, (addr >> i) & 1);
-    digitalWrite(DataPin, (byte >> i) & 1);
-    digitalWrite(Clk, LOW);
-    digitalWrite(Clk, HIGH);
+    digitalWrite(AddressPin, (addr >> (7 - i)) & 1);
+    digitalWrite(DataPins[i], (byte >> i) & 1);
+    digitalWrite(ShiftClockPin, HIGH);
+    digitalWrite(ShiftClockPin, LOW);
   }
-  digitalWrite(SClk, LOW);
-  digitalWrite(SClk, HIGH);
-  digitalWrite(WE, LOW);
-  digitalWrite(WE, HIGH);
+  digitalWrite(StorageClockPin, HIGH);
+  digitalWrite(StorageClockPin, LOW);
+  digitalWrite(WriteEnablePin, LOW);
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  digitalWrite(WriteEnablePin, HIGH);
+}
+
+static void ioMode(const uint8_t mode) {
+  for (uint8_t i = 0; i < 8; ++i) {
+    pinMode(DataPins[i], mode);
+  }
 }
 
 /**
@@ -127,11 +158,42 @@ static void eepromWrite(const uint8_t addr, const uint8_t byte, const bool page)
  * @param page Page select (false = low, true = high).
  */
 static void writeBuf(const bool page) {
-  uint8_t i = 255;
-  const uint8_t* const data = buf + 2;
-  do {
-    eepromWrite(i, data[i], page);
-  } while (i-- != 0);
+  ioMode(OUTPUT);
+  digitalWrite(PagePin, page);
+  for (uint16_t i = 0; i < 256; ++i) {
+    eepromWrite((uint8_t)i, buf[i + 2]);
+    delay(10);
+  }
+}
+
+static uint8_t eepromRead(const uint8_t addr) {
+  for (uint8_t i = 0; i < 8; ++i) {
+    digitalWrite(AddressPin, (addr >> (7 - i)) & 1);
+    digitalWrite(ShiftClockPin, HIGH);
+    digitalWrite(ShiftClockPin, LOW);
+  }
+  digitalWrite(StorageClockPin, HIGH);
+  digitalWrite(StorageClockPin, LOW);
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  uint8_t byte = 0;
+  for (uint8_t i = 0; i < 8; ++i) {
+    byte <<= 1;
+    byte |= digitalRead(DataPins[7 - i]);
+  }
+  return byte;
+}
+
+static void readBuf(const bool page) {
+  ioMode(INPUT);
+  digitalWrite(PagePin, page);
+  digitalWrite(OutputEnablePin, LOW);
+  for (uint16_t i = 0; i < 256; ++i) {
+    buf[i + 2] = eepromRead((uint8_t)i);
+  }
+  digitalWrite(OutputEnablePin, HIGH);
 }
 
 /**
@@ -157,16 +219,17 @@ static bool loadData(const uint16_t off, const uint16_t len) {
  */
 void setup() {
   Serial.begin(115200);
+  pinMode(WriteEnablePin, OUTPUT);
+  pinMode(OutputEnablePin, OUTPUT);
+  pinMode(StorageClockPin, OUTPUT);
+  pinMode(ShiftClockPin, OUTPUT);
   pinMode(PagePin, OUTPUT);
-  pinMode(WE, OUTPUT);
-  pinMode(AddrPin, OUTPUT);
-  pinMode(DataPin, OUTPUT);
-  pinMode(Clk, OUTPUT);
-  pinMode(SClk, OUTPUT);
+  pinMode(AddressPin, OUTPUT);
   pinMode(13, OUTPUT);
-  digitalWrite(WE, HIGH);
-  digitalWrite(SClk, HIGH);
-  digitalWrite(Clk, HIGH);
+  digitalWrite(WriteEnablePin, HIGH);
+  digitalWrite(OutputEnablePin, HIGH);
+  digitalWrite(StorageClockPin, LOW);
+  digitalWrite(ShiftClockPin, LOW);
 }
 
 /**
@@ -187,28 +250,36 @@ void loop() {
   if (buf[0] != 0xAA) goto drop;
   switch (buf[1]) {
     case OP_PING:
-      if (buf[2] != 0xA0 || buf[3] != 0x7E) goto drop;
+      if (!checkHash(false)) goto drop;
+      buf[1] = OP_ACK;
+      makeHash(false);
+      Serial.write(buf, 4);
       break;
     case OP_SEND_LOW:
     case OP_SEND_HIGH:
       if (!loadData(4, 256)) goto drop;
-      if (!checkHash()) goto drop;
+      if (!checkHash(true)) goto drop;
       writeBuf(buf[1] == OP_SEND_HIGH);
+      readBuf(buf[1] == OP_SEND_HIGH);
+      if (!checkHash(true)) buf[1] = OP_BAD_WRITE;
+      else buf[1] = OP_ACK;
+      makeHash(false);
+      Serial.write(buf, 4);
+      break;
+    case OP_READ_LOW:
+    case OP_READ_HIGH:
+      if (!checkHash(false)) goto drop;
+      readBuf(buf[1] == OP_READ_HIGH);
+      buf[1] = OP_SEND_LOW;
+      makeHash(true);
+      Serial.write(buf, 260);
       break;
     case OP_ACK:
+    case OP_BAD_WRITE:
     default:
       goto drop;
   }
-  Serial.write((const char*)Ack, 4);
   Serial.flush();
-  while (Serial.available() > 0) Serial.read();
-  return;
 drop:
   while (Serial.available() > 0) Serial.read();
-  for (uint8_t i = 0; i < 4; ++i) {
-    digitalWrite(13, LOW);
-    delay(100);
-    digitalWrite(13, HIGH);
-    delay(100);
-  }
 }

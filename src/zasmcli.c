@@ -130,11 +130,6 @@ bool ZCLI_inputfile(STM_Stream_T *const stream, const char *const prompt, const 
     return false;
   }
   path[strlen(path) - 1] = '\0'; // Remove newline
-  struct stat st;
-  if (stat(path, &st) == -1) {
-    ZCLI_errno();
-    return false;
-  }
   *stream = ZCLI_openfile(path, read);
   return true;
 }

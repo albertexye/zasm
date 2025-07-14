@@ -90,6 +90,8 @@ static void ZF_parseMagic(ZF_Ctx_T* ctx, ZF_Err_T* err);
  */
 static void ZF_parseOp(ZF_Ctx_T* ctx, ZF_Err_T* err);
 
+static void ZF_parseData(ZF_Ctx_T* ctx);
+
 /**
  * @brief Parse the protocol hash (CRC) from the buffer and validate.
  * @param ctx Pointer to the ZASM context.
@@ -128,7 +130,10 @@ typedef enum : uint8_t {
   ZF_OP_PING,      // ping the device
   ZF_OP_SEND_LOW,  // write data to the lower 256 bytes
   ZF_OP_SEND_HIGH, // write data to the higher 256 bytes
+  ZF_OP_READ_LOW,
+  ZF_OP_READ_HIGH,
   ZF_OP_ACK,       // acknowledge a packet
+  ZF_OP_BAD_WRITE,
 } ZF_Op_E;
 
 static const char* const s_ZF_ErrMsg[] = {
@@ -296,13 +301,29 @@ static void ZF_parseMagic(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
 }
 
 static void ZF_parseOp(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
-  const uint8_t op = ZF_getc(ctx);
-  if (op == ZF_OP_ACK) {
-    ctx->rcvState = ZF_RCV_STATE_CRC;
-    return;
+  const ZF_Op_E op = ZF_getc(ctx);
+  switch (op) {
+    case ZF_OP_SEND_LOW:
+      ctx->rcvState = ZF_RCV_STATE_DATA;
+      break;
+    case ZF_OP_ACK:
+    case ZF_OP_BAD_WRITE:
+      ctx->rcvState = ZF_RCV_STATE_CRC;
+      break;
+    case ZF_OP_PING:
+    case ZF_OP_SEND_HIGH:
+    case ZF_OP_READ_LOW:
+    case ZF_OP_READ_HIGH:
+    default:
+      err->err = ZF_ERR_PROTOCOL;
+      err->code.protocol = ZF_PROTOCOL_ERR_OP;
+      break;
   }
-  err->err = ZF_ERR_PROTOCOL;
-  err->code.protocol = ZF_PROTOCOL_ERR_OP;
+}
+
+static void ZF_parseData(ZF_Ctx_T* const ctx) {
+  ctx->bufPos += 256;
+  ctx->rcvState = ZF_RCV_STATE_CRC;
 }
 
 static void ZF_parseHash(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
@@ -315,12 +336,14 @@ static void ZF_parseHash(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
   ZF_clearTty(ctx, err);
 }
 
-bool ZF_poll(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
+ZF_Evt_E ZF_poll(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
   ZF_readTty(ctx, err);
+  bool received = false;
   while (true) {
     if (err->err != ZF_ERR_OK) break;
     const size_t avail = ctx->bufLen - ctx->bufPos;
-    if (avail == 0) return false;
+    if (avail == 0) return received ? ZF_EVT_RCV : ZF_EVT_NONE;
+    received = true;
     switch (ctx->rcvState) {
       case ZF_RCV_STATE_NONE:
         ZF_parseMagic(ctx, err);
@@ -328,16 +351,23 @@ bool ZF_poll(ZF_Ctx_T* const ctx, ZF_Err_T* const err) {
       case ZF_RCV_STATE_OP:
         ZF_parseOp(ctx, err);
         break;
+      case ZF_RCV_STATE_DATA:
+        if (avail < 256) return received ? ZF_EVT_RCV : ZF_EVT_NONE;
+        ZF_parseData(ctx);
+        break;
       case ZF_RCV_STATE_CRC:
-        if (avail < 2) return false;
+        if (avail < 2) return received ? ZF_EVT_RCV : ZF_EVT_NONE;
         ZF_parseHash(ctx, err);
-        return err->err == ZF_ERR_OK;
+        if (err->err != ZF_ERR_OK) break;
+        if (ctx->buf[1] == ZF_OP_ACK) return ZF_EVT_ACK;
+        if (ctx->buf[1] == ZF_OP_BAD_WRITE) return ZF_EVT_BAD_WRITE;
+        return ZF_EVT_DATA;
       default:
         assert(false);
     }
   }
   ZF_clearTty(ctx, err);
-  return false;
+  return ZF_EVT_NONE;
 }
 
 static void ZF_millisleep(ZF_Err_T* const err) {
@@ -362,18 +392,31 @@ static long ZF_macroTime(ZF_Err_T* const err) {
   return tv.tv_sec * 1'000'000 + tv.tv_usec;
 }
 
-bool ZF_block(
+ZF_Evt_E ZF_block(
   ZF_Ctx_T* const ctx,
   const uint32_t timeout,
   ZF_Err_T* const err
 ) {
-  const long start = ZF_macroTime(err);
+  long start = ZF_macroTime(err);
   if (err->err != ZF_ERR_OK) return false;
   while (true) {
-    const bool ack = ZF_poll(ctx, err);
-    if (err->err != ZF_ERR_OK || ack) return ack;
+    const ZF_Evt_E evt = ZF_poll(ctx, err);
+    if (err->err != ZF_ERR_OK) return ZF_EVT_NONE;
     const long now = ZF_macroTime(err);
     if (err->err != ZF_ERR_OK) return false;
+    switch (evt) {
+      case ZF_EVT_ACK:
+      case ZF_EVT_BAD_WRITE:
+      case ZF_EVT_DATA:
+        return evt;
+      case ZF_EVT_RCV:
+        start = now;
+        break;
+      case ZF_EVT_NONE:
+        break;
+      default:
+        assert(false);
+    }
     if (now - start >= timeout * 1000) return false;
     ZF_millisleep(err);
     if (err->err != ZF_ERR_OK) return false;
@@ -418,6 +461,21 @@ void ZF_write(
   ZF_writeTty(ctx, err);
 }
 
+void ZF_read(
+  ZF_Ctx_T* const ctx,
+  const bool page,
+  ZF_Err_T* const err
+) {
+  ZF_putc(ctx, 0xAA); // magic
+  ZF_putc(ctx, page ? ZF_OP_READ_HIGH : ZF_OP_READ_LOW);
+  ZF_writeTty(ctx, err);
+  if (err->err != ZF_ERR_OK) return;
+}
+
+const uint8_t* ZF_getData(ZF_Ctx_T* const ctx) {
+  return ctx->buf + 2;
+}
+
 const char* ZF_getErrMsg(const ZF_Err_T err) {
   switch (err.err) {
     case ZF_ERR_OK:
@@ -449,6 +507,7 @@ static const char *const s_ZF_HelpMsg =
   "Commands:\n"
   "  p - ping the device\n"
   "  w - write data to the device\n"
+  "  r - read data from the device\n"
   "  q - quit\n"
   "  h - help (this message)\n";
 
@@ -494,6 +553,22 @@ static bool ZF_readFile(
   return true;
 }
 
+static bool ZF_writeFile(
+  const uint8_t *const buf
+) {
+  STM_Stream_T stream;
+  if (!ZCLI_inputfile(&stream, "file: ", false))
+    return false;
+  STM_Err_T serr = {0};
+  STM_write(&stream, buf, 256, &serr);
+  ZCLI_closefile(&stream);
+  if (serr.err != STM_ERR_OK) {
+    ZCLI_error(STM_getErrMsg(serr));
+    return false;
+  }
+  return true;
+}
+
 static void ZF_exec(ZF_Ctx_T *const ctx, const char cmd) {
   bool page;
   ZF_Err_T err = {0};
@@ -505,10 +580,15 @@ static void ZF_exec(ZF_Ctx_T *const ctx, const char cmd) {
       break;
     case 'q':
       ZF_quit(ctx);
+    case 'r':
+      if (!ZF_inputPage(&page)) return;
+      printf("read page %d\n", page);
+      ZF_read(ctx, page, &err);
+      break;
     case 'w':
       if (!ZF_inputPage(&page)) return;
       if (!ZF_readFile(buf)) return;
-      printf("write\n");
+      printf("write page %d\n", page);
       ZF_write(ctx, buf, page, &err);
       break;
     case 'h':
@@ -522,13 +602,29 @@ static void ZF_exec(ZF_Ctx_T *const ctx, const char cmd) {
     ZCLI_error(ZF_getErrMsg(err));
     return;
   }
-  const bool ack = ZF_block(ctx, 1000, &err);
+  const ZF_Evt_E evt = ZF_block(ctx, 3000, &err);
   if (err.err != ZF_ERR_OK) {
     ZCLI_error(ZF_getErrMsg(err));
     return;
   }
-  if (ack) printf("acknowledged\n");
-  else ZCLI_error("timeout");
+  switch (evt) {
+    case ZF_EVT_ACK:
+      printf("acknowledged\n");
+      break;
+    case ZF_EVT_BAD_WRITE:
+      ZCLI_error("bad write");
+      break;
+    case ZF_EVT_DATA:
+      if (!ZF_writeFile(ZF_getData(ctx))) return;
+      printf("data received\n");
+      break;
+    case ZF_EVT_NONE:
+      ZCLI_error("timeout");
+      break;
+    case ZF_EVT_RCV:
+    default:
+      assert(false);
+  }
 }
 
 [[noreturn]] static void ZF_interactive(ZF_Ctx_T *const ctx) {
